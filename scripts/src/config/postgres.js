@@ -1,0 +1,55 @@
+import * as dotenv from "dotenv";
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// Load .env from scripts directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, '../../.env');
+dotenv.config({ path: envPath });
+
+export const SKILL_VERSION = "2.1.0";
+
+// Database type from env
+export const DB_TYPE = process.env.DB_TYPE || "mysql";
+
+// Parse DATABASE_URL for PostgreSQL if provided
+// Note: Passwords with special characters (#, @, !, etc.) must be URL-encoded in DATABASE_URL
+// Example: password "pass#123" should be written as "pass%23123" in the URL
+function parseDatabaseUrl(url) {
+    if (!url) return null;
+    try {
+        const parsed = new URL(url);
+        return {
+            host: parsed.hostname,
+            port: parseInt(parsed.port) || 5432,
+            user: decodeURIComponent(parsed.username),
+            // decodeURIComponent handles URL-encoded special characters
+            // e.g., %23 -> #, %40 -> @, %21 -> !, %24 -> $
+            password: decodeURIComponent(parsed.password),
+            database: parsed.pathname.slice(1), // Remove leading /
+        };
+    } catch (e) {
+        console.error("Failed to parse DATABASE_URL:", e.message);
+        return null;
+    }
+}
+
+// PostgreSQL config from DATABASE_URL or individual vars
+const pgUrlConfig = parseDatabaseUrl(process.env.DATABASE_URL);
+
+export const pgConfig = {
+    host: pgUrlConfig?.host || process.env.PG_HOST || "127.0.0.1",
+    port: pgUrlConfig?.port || Number(process.env.PG_PORT || "5432"),
+    user: pgUrlConfig?.user || process.env.PG_USER || "postgres",
+    password: pgUrlConfig?.password || process.env.PG_PASS || "",
+    database: pgUrlConfig?.database || process.env.PG_DB || undefined,
+    max: 10, // connection pool size
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+};
+
+// Export for easy access
+export function getDbType() {
+    return DB_TYPE.toLowerCase();
+}
