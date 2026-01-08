@@ -1,12 +1,13 @@
-import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { config as loadEnv } from '../utils/customEnvLoader.js';
 
-// Load .env from scripts directory
+// Load .env from scripts directory using custom loader
+// This allows reading # in unquoted values (e.g., PASS=abc#123)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const envPath = path.resolve(__dirname, '../../.env');
-dotenv.config({ path: envPath });
+loadEnv({ path: envPath });
 
 import { parseSchemaPermissions, parseMySQLConnectionString } from "../utils/index.js";
 
