@@ -1,7 +1,7 @@
 /**
  * Database factory - returns the appropriate driver based on DB_TYPE
  */
-import { DB_TYPE, getDbType } from "./../config/postgres.js";
+import { DB_TYPE, getDbType, setDbType } from "./../config/postgres.js";
 import { log } from "./../utils/index.js";
 
 let mysqlDriver = null;
@@ -62,4 +62,4 @@ export async function closePool() {
     }
 }
 
-export { DB_TYPE, getDbType };
+export { DB_TYPE, getDbType, setDbType };

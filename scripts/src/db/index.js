@@ -1,6 +1,6 @@
 /**
  * Database module - exports factory functions
- * Use DB_TYPE env var to select database (mysql or postgres)
+ * Use --db=postgres flag or DB_TYPE env var to select database
  */
 export {
     getPool,
@@ -10,4 +10,5 @@ export {
     getDriver,
     DB_TYPE,
     getDbType,
+    setDbType,
 } from "./factory.js";

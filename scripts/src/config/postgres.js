@@ -11,8 +11,27 @@ loadEnv({ path: envPath });
 
 export const SKILL_VERSION = "2.1.0";
 
-// Database type from env
-export const DB_TYPE = process.env.DB_TYPE || "mysql";
+// Database type - mutable to allow CLI override
+// Default: mysql, can be changed via setDbType() or --db=postgres/--postgres flag
+let currentDbType = process.env.DB_TYPE || "mysql";
+
+/**
+ * Set the database type at runtime
+ * @param {string} dbType - "mysql" or "postgres"
+ */
+export function setDbType(dbType) {
+    const normalized = dbType.toLowerCase();
+    if (normalized === "postgres" || normalized === "postgresql" || normalized === "pg") {
+        currentDbType = "postgres";
+    } else if (normalized === "mysql" || normalized === "mariadb") {
+        currentDbType = "mysql";
+    } else {
+        throw new Error(`Unsupported database type: ${dbType}. Use 'mysql' or 'postgres'.`);
+    }
+}
+
+// Keep DB_TYPE export for backward compatibility (but it won't reflect runtime changes)
+export const DB_TYPE = currentDbType;
 
 // Parse DATABASE_URL for PostgreSQL if provided
 // Note: Passwords with special characters (#, @, !, etc.) must be URL-encoded in DATABASE_URL
@@ -52,5 +71,5 @@ export const pgConfig = {
 
 // Export for easy access
 export function getDbType() {
-    return DB_TYPE.toLowerCase();
+    return currentDbType.toLowerCase();
 }

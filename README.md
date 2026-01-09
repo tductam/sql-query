@@ -17,7 +17,6 @@ Edit the `.env` file in the `scripts/` directory:
 
 #### For PostgreSQL:
 ```env
-DB_TYPE=postgres
 DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 ```
 
@@ -35,15 +34,10 @@ MYSQL_DB=your_database
 
 ```bash
 node index.js test-connection
+node index.js test-connection --postgres
 ```
 
 ## Environment Variables
-
-### Database Selection
-
-| Variable | Description | Options |
-|----------|-------------|---------|
-| `DB_TYPE` | Database type | `mysql`, `postgres` |
 
 ### PostgreSQL
 

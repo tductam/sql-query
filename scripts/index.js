@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 /**
  * SQL Query CLI Script for Claude Agent Skill
- * Supports MySQL and PostgreSQL via DB_TYPE env var
+ * Default: MySQL, use --db=postgres or --postgres flag for PostgreSQL
  * 
  * Usage:
  *   node index.js query "SELECT * FROM users"
+ *   node index.js --db=postgres query "SELECT * FROM users"
+ *   node index.js --postgres list-tables
  *   node index.js list-tables
  *   node index.js describe <table_name>
  *   node index.js test-connection
  */
 
 import { log } from "./src/utils/index.js";
-import { SKILL_VERSION, DB_TYPE, pgConfig } from "./src/config/postgres.js";
+import { SKILL_VERSION, pgConfig } from "./src/config/postgres.js";
 import { dbConfig as mysqlConfig } from "./src/config/index.js";
 import {
     getPool,
@@ -19,6 +21,7 @@ import {
     executeQuery,
     closePool,
     getDbType,
+    setDbType,
 } from "./src/db/index.js";
 
 // Output JSON response
@@ -204,24 +207,69 @@ function showHelp() {
             "describe <table>": "Show table structure",
             "test-connection": "Test database connection"
         },
+        flags: {
+            "--db=<type>": "Set database type (mysql, postgres)",
+            "--postgres": "Shortcut for --db=postgres",
+            "--mysql": "Shortcut for --db=mysql (default)"
+        },
         examples: [
             'node index.js query "SELECT * FROM users LIMIT 5"',
+            'node index.js --postgres query "SELECT * FROM users"',
+            'node index.js --db=postgres list-tables',
             'node index.js list-tables',
             'node index.js describe users',
             'node index.js test-connection'
         ],
         envVars: {
-            DB_TYPE: "mysql or postgres (current: " + config.type + ")",
             DATABASE_URL: "PostgreSQL connection string (optional)",
+            MYSQL_HOST: "MySQL host (optional, default: 127.0.0.1)",
         }
     };
     console.log(JSON.stringify(help, null, 2));
 }
 
+/**
+ * Parse CLI arguments and extract db type flags
+ * @param {string[]} args - Command line arguments
+ * @returns {{ dbType: string|null, cleanArgs: string[] }}
+ */
+function parseDbFlags(args) {
+    let dbType = null;
+    const cleanArgs = [];
+
+    for (const arg of args) {
+        if (arg === "--postgres" || arg === "--pg") {
+            dbType = "postgres";
+        } else if (arg === "--mysql") {
+            dbType = "mysql";
+        } else if (arg.startsWith("--db=")) {
+            dbType = arg.substring(5);
+        } else {
+            cleanArgs.push(arg);
+        }
+    }
+
+    return { dbType, cleanArgs };
+}
+
 // Main
 async function main() {
-    const args = process.argv.slice(2);
-    const command = args[0];
+    const rawArgs = process.argv.slice(2);
+
+    // Parse db flags from arguments
+    const { dbType, cleanArgs } = parseDbFlags(rawArgs);
+
+    // Set database type if specified via CLI flag
+    if (dbType) {
+        try {
+            setDbType(dbType);
+        } catch (error) {
+            outputJSON(false, null, error.message);
+            process.exit(1);
+        }
+    }
+
+    const command = cleanArgs[0];
 
     if (!command || command === "help" || command === "--help" || command === "-h") {
         showHelp();
@@ -236,10 +284,10 @@ async function main() {
             await listTables();
             break;
         case "describe":
-            await describeTable(args[1]);
+            await describeTable(cleanArgs[1]);
             break;
         case "query":
-            await runQuery(args.slice(1).join(" "));
+            await runQuery(cleanArgs.slice(1).join(" "));
             break;
         default:
             outputJSON(false, null, `Unknown command: ${command}. Use 'help' for available commands.`);
