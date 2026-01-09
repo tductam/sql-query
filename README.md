@@ -7,7 +7,7 @@ A Claude agent skill for querying MySQL and PostgreSQL databases.
 ### 1. Install Dependencies
 
 ```bash
-cd .claude/skills/mysql/scripts
+cd sql-query/scripts
 npm install
 ```
 
