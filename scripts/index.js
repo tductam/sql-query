@@ -90,9 +90,12 @@ async function testConnection() {
 async function listTables() {
     try {
         const dbType = getDbType();
+        const config = getCurrentConfig();
         let sql;
 
         if (dbType === "postgres" || dbType === "postgresql") {
+            // For PostgreSQL: filter by current database, default to 'public' schema
+            // Note: PostgreSQL connection is always to a specific database
             sql = `
                 SELECT 
                     table_schema as schema,
@@ -103,17 +106,34 @@ async function listTables() {
                 ORDER BY table_schema, table_name
             `;
         } else {
-            sql = `
-                SELECT 
-                    table_schema as 'database',
-                    table_name as name,
-                    table_rows as rowCount,
-                    ROUND(data_length / 1024 / 1024, 2) as dataSizeMB,
-                    table_comment as description
-                FROM information_schema.tables 
-                WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
-                ORDER BY table_schema, table_name
-            `;
+            // For MySQL: filter by configured database if set
+            const database = config.database;
+            if (database) {
+                sql = `
+                    SELECT 
+                        table_schema as 'database',
+                        table_name as name,
+                        table_rows as rowCount,
+                        ROUND(data_length / 1024 / 1024, 2) as dataSizeMB,
+                        table_comment as description
+                    FROM information_schema.tables 
+                    WHERE table_schema = '${database}'
+                    ORDER BY table_name
+                `;
+            } else {
+                // Multi-DB mode: list all user databases
+                sql = `
+                    SELECT 
+                        table_schema as 'database',
+                        table_name as name,
+                        table_rows as rowCount,
+                        ROUND(data_length / 1024 / 1024, 2) as dataSizeMB,
+                        table_comment as description
+                    FROM information_schema.tables 
+                    WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+                    ORDER BY table_schema, table_name
+                `;
+            }
         }
 
         const result = await executeReadOnlyQuery(sql);
@@ -134,9 +154,20 @@ async function describeTable(tableName) {
 
     try {
         const dbType = getDbType();
+        const config = getCurrentConfig();
         let sql, params;
 
         if (dbType === "postgres" || dbType === "postgresql") {
+            // For PostgreSQL: filter by table_name and optionally by schema
+            // Default to 'public' schema if not specified in table name
+            let schema = "public";
+            let table = tableName;
+
+            // Support schema.table format
+            if (tableName.includes(".")) {
+                [schema, table] = tableName.split(".");
+            }
+
             sql = `
                 SELECT 
                     column_name as name,
@@ -145,29 +176,60 @@ async function describeTable(tableName) {
                     is_nullable as nullable,
                     column_default as default_value
                 FROM information_schema.columns 
-                WHERE table_name = $1
+                WHERE table_name = $1 AND table_schema = $2
                 ORDER BY ordinal_position
             `;
-            params = [tableName];
+            params = [table, schema];
         } else {
-            sql = `
-                SELECT 
-                    column_name as name,
-                    data_type as type,
-                    column_type as fullType,
-                    is_nullable as nullable,
-                    column_key as 'key',
-                    column_default as 'default',
-                    extra,
-                    column_comment as comment
-                FROM information_schema.columns 
-                WHERE table_name = ?
-                ORDER BY ordinal_position
-            `;
-            params = [tableName];
+            // For MySQL: filter by configured database if set
+            const database = config.database;
+
+            if (database) {
+                sql = `
+                    SELECT 
+                        column_name as name,
+                        data_type as type,
+                        column_type as fullType,
+                        is_nullable as nullable,
+                        column_key as 'key',
+                        column_default as 'default',
+                        extra,
+                        column_comment as comment
+                    FROM information_schema.columns 
+                    WHERE table_name = ? AND table_schema = ?
+                    ORDER BY ordinal_position
+                `;
+                params = [tableName, database];
+            } else {
+                // Multi-DB mode: search across all user databases
+                sql = `
+                    SELECT 
+                        table_schema as 'database',
+                        column_name as name,
+                        data_type as type,
+                        column_type as fullType,
+                        is_nullable as nullable,
+                        column_key as 'key',
+                        column_default as 'default',
+                        extra,
+                        column_comment as comment
+                    FROM information_schema.columns 
+                    WHERE table_name = ?
+                    AND table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+                    ORDER BY table_schema, ordinal_position
+                `;
+                params = [tableName];
+            }
         }
 
         const rows = await executeQuery(sql, params);
+
+        if (rows.length === 0) {
+            const dbInfo = config.database ? ` in database '${config.database}'` : "";
+            outputJSON(false, null, `Table '${tableName}' not found${dbInfo}`);
+            process.exit(1);
+        }
+
         outputJSON(true, rows);
     } catch (error) {
         outputJSON(false, null, `Failed to describe table: ${error.message}`);
