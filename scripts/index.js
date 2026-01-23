@@ -246,8 +246,19 @@ async function runQuery(sql) {
 
     try {
         const result = await executeReadOnlyQuery(sql);
-        const data = JSON.parse(result.content[0].text);
+        const responseText = result.content[0].text;
         const executionTime = result.content[1]?.text;
+
+        // Try to parse as JSON (for SELECT queries)
+        // If parsing fails, use the text directly (for INSERT/UPDATE/DELETE)
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            // Not JSON, use text directly (e.g., "Insert successful...")
+            data = responseText;
+        }
+
         outputJSON(!result.isError, data, result.isError ? data : null, executionTime);
         if (result.isError) process.exit(1);
     } catch (error) {

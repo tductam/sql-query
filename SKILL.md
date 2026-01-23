@@ -1,36 +1,29 @@
 ---
 name: sql-query
-description: Executes SQL queries against MySQL or PostgreSQL databases. Default is MySQL, use --postgres flag for PostgreSQL.
+description: SQL queries for MySQL/PostgreSQL. Default MySQL, use --postgres for PostgreSQL.
+triggers: [database, sql, query, table, mysql, postgres, schema, insert, select, update, delete]
 ---
 
-# SQL Query Skill
+<base>node {SKILL_BASE_DIR}/scripts/index.js</base>
 
-This skill allows you to interact with MySQL or PostgreSQL databases via command-line scripts.
+## WORKFLOW
+BEFORE query, if context missing → EXECUTE commands yourself, DO NOT ask user:
+- Tables unknown? → execute list-tables → read output
+- Columns unknown? → execute describe {table} → read output
+- Then build and execute query
 
-## Database Selection
+DO NOT ask user for table/column names. GET them via commands.
 
-- **Default**: MySQL
-- **PostgreSQL**: Add `--postgres` or `--db=postgres` flag to any command
-
-## Available Commands
-
-Run commands from the `scripts` directory:
-
-```bash
-# Test database connection (default: MySQL)
-node <SKILL_BASE_DIR>/scripts/index.js test-connection
-
-# Test PostgreSQL connection
-node <SKILL_BASE_DIR>/scripts/index.js --postgres test-connection
-
-# List all tables
-node <SKILL_BASE_DIR>/scripts/index.js list-tables
-node <SKILL_BASE_DIR>/scripts/index.js --postgres list-tables
-
-# Get table structure
-node <SKILL_BASE_DIR>/scripts/index.js describe <table_name>
-
-# Execute SQL query
-node <SKILL_BASE_DIR>/scripts/index.js query "<sql>"
-node <SKILL_BASE_DIR>/scripts/index.js --postgres query "<sql>"
+## COMMANDS
 ```
+node {SKILL_BASE_DIR}/scripts/index.js [--postgres] test-connection     # check connection
+node {SKILL_BASE_DIR}/scripts/index.js [--postgres] list-tables         # list all tables  
+node {SKILL_BASE_DIR}/scripts/index.js [--postgres] describe {table}    # show columns
+node {SKILL_BASE_DIR}/scripts/index.js [--postgres] query "{sql}"       # run SQL
+```
+
+## WARNINGS
+- DELETE/DROP/TRUNCATE → confirm with user first
+- Unknown table size → use LIMIT
+- SQL strings use single quotes: 'value'
+- Wrap SQL in double quotes: query "SELECT * FROM t WHERE x = 'y'"
