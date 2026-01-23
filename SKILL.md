@@ -1,7 +1,6 @@
 ---
 name: sql-query
 description: SQL queries for MySQL/PostgreSQL. Default MySQL, use --postgres for PostgreSQL.
-triggers: [database, sql, query, table, mysql, postgres, schema, insert, select, update, delete]
 ---
 
 <base>node {SKILL_BASE_DIR}/scripts/index.js</base>
